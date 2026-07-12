@@ -1,0 +1,438 @@
+<meta charset="utf-8">
+<title>[Your Product] — Walkthrough Deck</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Replace these three font-faces with the target project's real typeface,
+     or delete them to fall back to system fonts. __FONT_*__ tokens are raw
+     base64 (no data: prefix) substituted by scripts/build_deck.py. */
+  @font-face { font-family: 'Display'; src: url(data:font/woff2;base64,__FONT_DISPLAY__) format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+  @font-face { font-family: 'Mono'; src: url(data:font/woff2;base64,__FONT_MONO__) format('woff2'); font-weight: 400 700; font-style: normal; font-display: swap; }
+
+  :root {
+    /* ── Brand tokens — swap for the target project's real design system ── */
+    --ink: #0f172a; --ink-2: #1e293b; --body: #334155; --muted: #64748b; --faint: #94a3b8;
+    --paper: #ffffff; --paper-sunk: #f8fafc;
+    --grid-line: #eef1f5; --line: #e2e8f0; --line-strong: #cbd5e1;
+    --accent: #16a34a; --accent-deep: #15803d; --accent-ink: #ffffff; --accent-wash: #f0fdf4; --accent-line: rgba(22,163,74,0.24);
+    --alt: #92400e; --alt-wash: #fdf3e7; --alt-line: rgba(146,64,14,0.24);
+    --warn: #a16207; --warn-wash: #fefce8;
+    --font-display: 'Display', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-body: 'Display', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: 'Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    /* 16:9 at exact pixel size — keep in sync with @page size below if you change this */
+    --sw: 1280px; --sh: 720px;
+    /* Raw logo PNG/SVG as one base64 value, reused everywhere via var() so it's
+       only embedded once regardless of how many places reference it. */
+    --logo-brand: url(data:image/png;base64,__LOGO__);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #dde3e0; color: var(--body); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, h4 { font-family: var(--font-display); color: var(--ink); margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+
+  /* ── Deck chrome (screen only, hidden on print) ────────────────────── */
+  .deck-bar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px; background: rgba(15,23,42,0.92); color: #fff;
+    font-size: 13px; backdrop-filter: blur(6px);
+  }
+  .deck-bar .left { display: flex; align-items: center; gap: 10px; }
+  .deck-bar .mark { width: 22px; height: 22px; border-radius: 4px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 9px; font-weight: 700; }
+  .deck-bar .hint { color: #94a3b8; font-size: 12px; }
+  .deck-bar button {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); color: #fff;
+    padding: 7px 14px; border-radius: 4px; cursor: pointer;
+  }
+  .deck-bar button:hover { background: rgba(255,255,255,0.16); }
+
+  .deck { display: flex; flex-direction: column; align-items: center; gap: 36px; padding: 40px 16px 80px; }
+
+  /* ── Slide base ─────────────────────────────────────────────────── */
+  .slide {
+    width: var(--sw); height: var(--sh); flex-shrink: 0;
+    position: relative; background: var(--paper); overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.06), 0 24px 48px rgba(15,23,42,0.16);
+  }
+  .slide-inner { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 46px 64px 0; }
+
+  .brand { position: absolute; top: 22px; left: 64px; display: flex; align-items: center; gap: 10px; z-index: 5; }
+  .brand .mark {
+    height: 34px; width: 53px; display: block; flex-shrink: 0;
+    background-image: var(--logo-brand);
+    background-size: contain; background-repeat: no-repeat; background-position: left center;
+  }
+  .brand .word { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .brand .tag { font-family: var(--font-mono); font-size: 9px; color: var(--faint); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* Footer: 3-column grid (part / step / page-num). grid-column is set
+     EXPLICITLY on each item — see Gotchas in SKILL.md for why this matters
+     on slides that only have .part + .num and skip .step. */
+  .slide-foot {
+    position: absolute; bottom: 22px; left: 64px; right: 64px; z-index: 5;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 12px;
+  }
+  .slide-foot > * { background: var(--paper); padding: 3px 10px; border-radius: 4px; }
+  .slide-foot .part { grid-column: 1; justify-self: start; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  .slide-foot .step {
+    grid-column: 2; justify-self: center; font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent-deep); white-space: nowrap;
+  }
+  .slide-foot .num { grid-column: 3; justify-self: end; font-family: var(--font-mono); font-size: 11px; color: var(--faint); }
+  .slide-foot .num strong { color: var(--muted); }
+  .divider .slide-foot > *, .slide-cover .slide-foot > * { background: var(--ink); }
+  .divider .slide-foot .part, .divider .slide-foot .step, .divider .slide-foot .num, .divider .slide-foot .num strong,
+  .slide-cover .slide-foot .part, .slide-cover .slide-foot .step, .slide-cover .slide-foot .num, .slide-cover .slide-foot .num strong { color: rgba(255,255,255,0.45); }
+
+  /* ── Content-slide header ──────────────────────────────────────── */
+  .s-title { font-size: 33px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.12; margin-top: 40px; }
+  .tag + .s-title { margin-top: 10px; }
+  .s-dek { font-size: 15px; color: var(--muted); margin-top: 8px; max-width: 78ch; line-height: 1.45; }
+
+  .s-body { flex: 1; min-height: 0; margin-top: 20px; padding-bottom: 26px; display: flex; }
+  .s-body.split { gap: 34px; align-items: stretch; }
+  .s-body.split .s-text { flex: 0 0 372px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .s-body.split .s-frame-wrap { flex: 1; min-width: 0; }
+  .s-body.center { align-items: center; justify-content: center; }
+  .s-body.frame-only { padding-top: 4px; }
+
+  .frame {
+    height: 100%; width: 100%; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--paper-sunk); overflow: hidden; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+  }
+  .frame img { width: 100%; height: 100%; object-fit: contain; object-position: top center; display: block; }
+  /* Two (or more) screenshots side by side, each with its own caption underneath */
+  .frame-row { display: flex; gap: 20px; height: 100%; width: 100%; }
+  .frame-row .frame-col { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+  .frame-row .frame-col .frame { height: auto; flex: 1; min-height: 0; }
+  .frame-col-cap { font-size: 11px; font-weight: 600; color: var(--muted); text-align: center; }
+
+  /* Field/value list for the text column next to a screenshot */
+  .flist { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+  .flist li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--grid-line); font-size: 13px; }
+  .flist li span:first-child { font-weight: 600; color: var(--ink-2); flex-shrink: 0; }
+  .flist li span:last-child { color: var(--muted); text-align: right; }
+
+  .checklist { display: flex; flex-direction: column; gap: 10px; }
+  .checklist li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+  .checklist li svg { color: var(--accent); flex-shrink: 0; }
+
+  .callout { display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px; border: 1px solid; font-size: 12.5px; line-height: 1.4; }
+  .callout svg { flex-shrink: 0; margin-top: 1px; }
+  .callout-warn { background: var(--warn-wash); border-color: rgba(161,98,7,0.24); color: var(--ink-2); }
+  .callout-warn svg { color: var(--warn); }
+  .callout-note { background: var(--paper-sunk); border-color: var(--line); color: var(--ink-2); }
+  .callout-note svg { color: var(--muted); }
+  .callout-green { background: var(--accent-wash); border-color: var(--accent-line); color: var(--ink-2); }
+  .callout-green svg { color: var(--accent-deep); }
+  .callout b { color: var(--ink); }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 4px; border: 1px solid; width: fit-content;
+  }
+  .tag-a { color: var(--accent-deep); background: var(--accent-wash); border-color: var(--accent-line); }
+  .tag-b { color: var(--alt); background: var(--alt-wash); border-color: var(--alt-line); }
+  .tag-neutral { color: var(--muted); background: var(--paper-sunk); border-color: var(--line); }
+
+  /* ── Cover slide ──────────────────────────────────────────────────
+     Default treatment is a dark hero (reads as more premium than plain
+     white — see SKILL.md Step 5). Swap --ink/--accent for the project's
+     real brand colors rather than inventing a new palette. */
+  .cover { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0 80px; position: relative; }
+  .cover-eyebrow { font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-deep); }
+  .cover-title { font-size: 62px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; margin-top: 18px; }
+  .cover-title em { font-style: normal; color: var(--accent-deep); }
+  .cover-lede { font-size: 17px; color: var(--muted); margin-top: 22px; max-width: 62ch; line-height: 1.5; }
+  .cover-stats { display: flex; gap: 40px; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .cover-stats div { display: flex; flex-direction: column; gap: 4px; }
+  .cover-stats dt { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  .cover-stats dd { margin: 0; font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--ink); }
+  /* Optional large faded logo watermark on the cover — a big rendering of the
+     REAL logo reads as intentional/on-brand. A generic decorative icon
+     (circle, crosshair, abstract mark) reads as filler — avoid it. Commented
+     out by default; uncomment and adjust position/size once a real logo is wired up. */
+  .cover-crest {
+    position: absolute; right: -40px; top: 50%; transform: translateY(-50%);
+    width: 640px; height: 410px; opacity: 0.14;
+    background-image: var(--logo-brand);
+    background-size: contain; background-repeat: no-repeat; background-position: center;
+  }
+  .cover+.slide-foot { display: flex; justify-content: center; align-items: center; }
+  .slide-cover {
+    background:
+      radial-gradient(1000px 640px at 88% -6%, rgba(22,163,74,0.32), transparent 60%),
+      radial-gradient(760px 560px at 2% 108%, rgba(21,128,61,0.22), transparent 62%),
+      var(--ink);
+  }
+  .slide-cover::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px; z-index: 1;
+    background: linear-gradient(90deg, var(--accent-deep), var(--accent) 50%, var(--accent-deep));
+  }
+  .slide-cover .cover-eyebrow { color: #86efac; }
+  .slide-cover .cover-title { color: #fff; }
+  .slide-cover .cover-title em { color: #4ade80; }
+  .slide-cover .cover-lede { color: #cbd5e1; }
+  .slide-cover .cover-stats { border-top-color: rgba(255,255,255,0.16); }
+  .slide-cover .cover-stats dt { color: rgba(255,255,255,0.5); }
+  .slide-cover .cover-stats dd { color: #fff; }
+  .slide-cover .brand .word, .slide-cover .brand .tag { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+  .slide-cover .brand { position: unset; }
+
+  /* ── Divider slide (section title) ─────────────────────────────── */
+  .divider { height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 0 80px; background: var(--ink); color: #fff; position: relative; }
+  .divider-num { font-family: var(--font-mono); font-size: 130px; font-weight: 600; color: var(--accent); line-height: 1; opacity: 0.9; }
+  .divider-label { font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #86efac; margin-top: 18px; }
+  .divider-title { font-size: 42px; font-weight: 600; letter-spacing: -0.01em; margin-top: 10px; color: #fff; }
+  .divider-dek { font-size: 15px; color: #cbd5e1; margin-top: 14px; max-width: 60ch; line-height: 1.5; }
+  .divider .brand .word, .divider .brand .tag { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); }
+
+  /* ── Reference / glossary table slide ─────────────────────────────*/
+  .reftable { width: 100%; border-collapse: collapse; }
+  .reftable td { padding: 8px 10px; font-size: 12.5px; border-bottom: 1px solid var(--grid-line); vertical-align: top; }
+  .reftable td:first-child { font-weight: 600; color: var(--ink-2); white-space: nowrap; padding-left: 0; width: 30%; }
+  .reftable td:last-child { color: var(--muted); }
+  .ref-col-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+
+  /* ── Closing slide ──────────────────────────────────────────────── */
+  .closing { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px; padding: 0 80px; }
+  .closing-title { font-size: 46px; font-weight: 600; letter-spacing: -0.01em; }
+  .closing-lede { font-size: 16px; color: var(--muted); max-width: 56ch; line-height: 1.5; }
+  .closing-links { display: flex; gap: 14px; margin-top: 14px; }
+  .closing-chip { font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--line); color: var(--ink-2); background: var(--paper-sunk); }
+
+  /* ── Print — the part that's easy to get subtly wrong ────────────── */
+  @media print {
+    /* Must match --sw/--sh above exactly, in the same px unit */
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { background: #fff; }
+    * {
+      /* Without this, backgrounds silently vanish on export regardless of
+         the browser's "background graphics" print option. */
+      print-color-adjust: exact !important;
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    .no-print { display: none !important; }
+    .deck { padding: 0; gap: 0; }
+    .slide { box-shadow: none; page-break-after: always; break-after: page; margin: 0 !important; }
+    .slide:last-child { page-break-after: auto; break-after: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ── Responsive scaling for small screens (screen only) ─────────── */
+  @media (max-width: 1320px) {
+    .deck { padding-left: 0; padding-right: 0; }
+  }
+</style>
+
+<div class="deck-bar no-print">
+  <div class="left">
+    <span class="mark">APP</span>
+    <span>[Your Product] — Walkthrough Deck</span>
+  </div>
+  <span class="hint">9 slides · 16:9 · Print → Save as PDF for a paginated slide deck</span>
+  <button id="printBtn" type="button">Print / Save as PDF</button>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1 — COVER -->
+  <div class="slide slide-cover">
+    <!-- <div class="cover-crest" role="presentation"></div> -->
+    <div class="cover">
+      <div class="brand">
+        <span class="mark" role="img" aria-label="Logo"></span>
+        <span class="word">[Your Product]</span>
+        <span class="tag">Walkthrough</span>
+      </div>
+      <div>
+        <h1 class="cover-title">[What this flow does.]<br><em>[The outcome it produces.]</em></h1>
+        <p class="cover-lede">[One or two sentences framing the whole deck — what flow this walks through, and a note that every screen shown is a real capture, not a mockup, if that's true.]</p>
+      </div>
+      <dl class="cover-stats">
+        <div><dt>[Stat label]</dt><dd>[N]</dd></div>
+        <div><dt>[Stat label]</dt><dd>[N]</dd></div>
+        <div><dt>Slides</dt><dd>9</dd></div>
+      </dl>
+    </div>
+    <div class="slide-foot"><span class="part">[Org / Product name]</span><span class="num">Cover</span></div>
+  </div>
+
+  <!-- SLIDE 2 — AGENDA: a generic "flow at a glance" number sequence.
+       Swap the count/labels for the real parts of the flow. -->
+  <div class="slide">
+    <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+    <div class="slide-inner">
+      <h2 class="s-title">[The flow at a glance]</h2>
+      <p class="s-dek">[One sentence describing the overall shape of the flow — how many parts, what connects them.]</p>
+      <div class="s-body center">
+        <div style="display:flex;align-items:center;gap:18px;width:100%;justify-content:center;">
+          <div class="tag tag-a" style="font-size:13px;padding:12px 20px;font-weight:700;">[Part 1 name]</div>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <div class="tag tag-b" style="font-size:13px;padding:12px 20px;font-weight:700;">[Part 2 name]</div>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--faint)" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <div class="tag tag-neutral" style="font-size:13px;padding:12px 20px;font-weight:700;">[Part 3 name]</div>
+        </div>
+      </div>
+      <div class="slide-foot"><span class="part">Overview</span><span class="step">Agenda</span><span class="num"><strong>02</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 — DIVIDER: PART 1. Duplicate this block once per section of
+       the flow. .divider-num is the section index ("01", "02", …). -->
+  <div class="slide">
+    <div class="divider">
+      <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+      <p class="divider-num">01</p>
+      <p class="divider-label">Part One</p>
+      <h2 class="divider-title">[Part 1 name]</h2>
+      <p class="divider-dek">[One sentence: how many slides in this part, and what the reader will see.]</p>
+      <div class="slide-foot"><span class="part">Part 1</span><span class="num"><strong>03</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 — CONTENT, "split" pattern: a short field/value list or
+       callout on the left, one screenshot on the right. Good for a form
+       screen where you want to call out specific fields. -->
+  <div class="slide">
+    <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+    <div class="slide-inner">
+      <h2 class="s-title">[Step name, as an instruction — e.g. "Fill in your details"]</h2>
+      <p class="s-dek">[How to get to this screen, as a plain instruction — e.g. "Go to Settings, then click Edit Profile."]</p>
+      <div class="s-body split">
+        <div class="s-text">
+          <ul class="flist">
+            <li><span>[Field name]</span><span>[Value or note]</span></li>
+            <li><span>[Field name]</span><span>[Value or note]</span></li>
+            <li><span>[Field name]</span><span>[Value or note]</span></li>
+          </ul>
+          <div class="callout callout-note">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            <p>[A detail worth calling out — something easy to miss or a non-obvious behavior.]</p>
+          </div>
+        </div>
+        <div class="s-frame-wrap"><div class="frame"><img src="data:image/webp;base64,__IMG_STEP_1__" alt="[Describe exactly what this screenshot shows]"></div></div>
+      </div>
+      <div class="slide-foot"><span class="part">Part 1</span><span class="step">Step 1 of 2</span><span class="num"><strong>04</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 — CONTENT, "frame-only" pattern: one big screenshot, no side
+       text. Good for a review/confirmation screen that speaks for itself. -->
+  <div class="slide">
+    <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+    <div class="slide-inner">
+      <h2 class="s-title">[Step name]</h2>
+      <p class="s-dek">[What the reader is looking at and why it matters.]</p>
+      <div class="s-body frame-only"><div class="frame"><img src="data:image/webp;base64,__IMG_STEP_2__" alt="[Describe exactly what this screenshot shows]"></div></div>
+      <div class="slide-foot"><span class="part">Part 1</span><span class="step">Step 2 of 2</span><span class="num"><strong>05</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 — DIVIDER: PART 2 -->
+  <div class="slide">
+    <div class="divider">
+      <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+      <p class="divider-num">02</p>
+      <p class="divider-label">Part Two</p>
+      <h2 class="divider-title">[Part 2 name]</h2>
+      <p class="divider-dek">[One sentence framing this part.]</p>
+      <div class="slide-foot"><span class="part">Part 2</span><span class="num"><strong>06</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 — CONTENT, "two-frame" pattern: compare two screenshots side
+       by side (before/after, empty/filled, success/error). -->
+  <div class="slide">
+    <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+    <div class="slide-inner">
+      <h2 class="s-title">[Step name]</h2>
+      <p class="s-dek">[What's different between the two states shown below.]</p>
+      <div class="s-body frame-only">
+        <div class="frame-row">
+          <div class="frame-col">
+            <div class="frame"><img src="data:image/webp;base64,__IMG_STEP_3A__" alt="[Describe this screenshot]"></div>
+            <p class="frame-col-cap">[Caption for the left screenshot]</p>
+          </div>
+          <div class="frame-col">
+            <div class="frame"><img src="data:image/webp;base64,__IMG_STEP_3B__" alt="[Describe this screenshot]"></div>
+            <p class="frame-col-cap">[Caption for the right screenshot]</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-foot"><span class="part">Part 2</span><span class="step">[Step label]</span><span class="num"><strong>07</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8 — REFERENCE / GLOSSARY: two-column quick-reference table.
+       Good as a second-to-last slide for navigation labels or term definitions. -->
+  <div class="slide">
+    <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+    <div class="slide-inner">
+      <h2 class="s-title">[Navigation &amp; glossary]</h2>
+      <div class="s-body split" style="margin-top:26px;">
+        <div class="s-text" style="flex-basis:50%;">
+          <p class="ref-col-title">[Navigation]</p>
+          <table class="reftable">
+            <tr><td>[Item]</td><td>[What it does]</td></tr>
+            <tr><td>[Item]</td><td>[What it does]</td></tr>
+            <tr><td>[Item]</td><td>[What it does]</td></tr>
+          </table>
+        </div>
+        <div class="s-text" style="flex-basis:50%;">
+          <p class="ref-col-title">[Glossary]</p>
+          <table class="reftable">
+            <tr><td>[Term]</td><td>[Definition]</td></tr>
+            <tr><td>[Term]</td><td>[Definition]</td></tr>
+            <tr><td>[Term]</td><td>[Definition]</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="slide-foot"><span class="part">Reference</span><span class="step">Quick reference</span><span class="num"><strong>08</strong> / 09</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9 — CLOSING. Only name a companion document here if it will
+       actually reach this audience — otherwise describe it in plain words
+       instead of pointing at a filename that won't exist for them. -->
+  <div class="slide">
+    <div class="brand"><span class="mark" role="img" aria-label="Logo"></span><span class="word">[Your Product]</span><span class="tag">Walkthrough</span></div>
+    <div class="closing">
+      <h2 class="closing-title">[Restate the outcome from the cover.]</h2>
+      <p class="closing-lede">[Where to go for more detail, or who to ask — plain language, not a filename.]</p>
+      <div class="closing-links">
+        <span class="closing-chip">[Companion guide name, if any]</span>
+      </div>
+    </div>
+    <div class="slide-foot"><span class="part">[Org / Product name]</span><span class="step">That's the full flow</span><span class="num"><strong>09</strong> / 09</span></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  document.getElementById('printBtn').addEventListener('click', function () { window.print(); });
+
+  var deck = document.getElementById('deck');
+  function fitSlides() {
+    var pad = 32;
+    var scale = Math.min(1, (window.innerWidth - pad) / 1280);
+    deck.style.zoom = scale;
+  }
+  window.addEventListener('resize', fitSlides);
+  window.addEventListener('beforeprint', function () { deck.style.zoom = 1; });
+  window.addEventListener('afterprint', fitSlides);
+  fitSlides();
+})();
+</script>
